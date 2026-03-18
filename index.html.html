@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>본부별 지표 분석 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --q:#3B82F6;--q2:#1D4ED8;--q-light:#EFF6FF;
+  --s:#F97316;--s2:#C2410C;--s-light:#FFF7ED;
+  --tie:#8B5CF6;--tie-light:#F5F3FF;
+  --c1:#3B82F6;--c2:#8B5CF6;--c3:#10B981;
+  --d1:#3B82F6;--d2:#F97316;--d3:#10B981;
+  --bg:#0F172A;--bg2:#1E293B;--bg3:#334155;
+  --surface:#1E293B;--surface2:#273549;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#F1F5F9;--text2:#94A3B8;--text3:#64748B;
+  --radius:16px;--radius-sm:10px;
+  --glow-q:0 0 24px rgba(59,130,246,0.25);
+  --glow-s:0 0 24px rgba(249,115,22,0.25);
+}
+.light{
+  --bg:#F8FAFC;--bg2:#F1F5F9;--bg3:#E2E8F0;
+  --surface:#FFFFFF;--surface2:#F8FAFC;
+  --border:rgba(0,0,0,0.06);--border2:rgba(0,0,0,0.10);
+  --text:#0F172A;--text2:#475569;--text3:#94A3B8;
+  --glow-q:0 4px 20px rgba(59,130,246,0.15);
+  --glow-s:0 4px 20px rgba(249,115,22,0.15);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.wrapper{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:32px 24px 64px}
+
+/* TAB NAV */
+.tab-nav{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:5px;margin-bottom:28px;width:fit-content}
+.tab-btn{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:transparent;font-family:'Pretendard',sans-serif;transition:all .2s;white-space:nowrap}
+.tab-btn.active{background:var(--q);color:#fff;box-shadow:var(--glow-q)}
+.tab-btn:hover:not(.active){background:var(--bg3);color:var(--text)}
+
+/* HEADER */
+.header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:16px}
+.header-left h1{font-size:26px;font-weight:700;letter-spacing:-.5px;background:linear-gradient(135deg,var(--text) 40%,var(--q));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header-left p{font-size:13px;color:var(--text3);margin-top:4px;font-family:'DM Mono',monospace}
+.header-right{display:flex;gap:10px;align-items:center}
+.btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid var(--border2);background:var(--surface);color:var(--text2);cursor:pointer;transition:all .2s;font-family:'Pretendard',sans-serif}
+.btn:hover{background:var(--bg3);color:var(--text);border-color:var(--q)}
+.btn svg{width:14px;height:14px}
+
+/* FILTER BAR */
+.filter-bar{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:18px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:28px}
+.filter-group{display:flex;align-items:center;gap:8px}
+.filter-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.filter-pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .2s}
+.pill:hover{border-color:var(--q);color:var(--text)}
+.pill.active-all{background:var(--text);color:var(--bg);border-color:var(--text)}
+.pill.active-q{background:var(--q);color:#fff;border-color:var(--q);box-shadow:var(--glow-q)}
+.pill.active-s{background:var(--s);color:#fff;border-color:var(--s);box-shadow:var(--glow-s)}
+.pill.active-tie{background:var(--tie);color:#fff;border-color:var(--tie)}
+.divider-v{width:1px;height:28px;background:var(--border2)}
+.dpill{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all .2s}
+.dpill:hover{border-color:var(--q);color:var(--text)}
+.dpill.active{background:var(--q);color:#fff;border-color:var(--q);box-shadow:var(--glow-q)}
+.bar-row{transition:opacity .25s}
+.bar-row.dimmed{opacity:0.18}
+.bar-row.dimmed .bar-name{color:var(--text3)}
+.bar-row.highlighted .bar-track{box-shadow:0 0 0 2.5px var(--q);border-radius:6px}
+.bar-row.highlighted .bar-name{color:var(--text);font-weight:600}
+.seg3-row{transition:opacity .25s}
+.seg3-row.dimmed{opacity:0.18}
+.seg3-row.dimmed .seg3-name{color:var(--text3)}
+.seg3-row.highlighted .seg3-track{box-shadow:0 0 0 2.5px var(--q);border-radius:6px}
+.seg3-row.highlighted .seg3-name{color:var(--text);font-weight:600}
+.sort-sel{padding:6px 12px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;font-family:'Pretendard',sans-serif;outline:none}
+.sort-sel:focus{border-color:var(--q)}
+
+/* METRIC CARDS */
+.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:28px}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.metric-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--q))}
+.metric-card .label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.metric-card .value{font-size:30px;font-weight:700;color:var(--accent,var(--text));line-height:1;font-family:'DM Mono',monospace}
+.metric-card .sub{font-size:11px;color:var(--text3);margin-top:6px}
+.metric-card .bar-mini{height:3px;background:var(--bg3);border-radius:2px;margin-top:12px;overflow:hidden}
+.metric-card .bar-mini-fill{height:100%;background:var(--accent,var(--q));border-radius:2px;transition:width .8s cubic-bezier(.16,1,.3,1)}
+
+/* CHART CARDS */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.chart-full{grid-column:1/-1}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:box-shadow .2s}
+.chart-card:hover{box-shadow:0 4px 24px rgba(0,0,0,0.15)}
+.chart-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.chart-title{font-size:14px;font-weight:600;color:var(--text)}
+.chart-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.legend{display:flex;gap:14px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)}
+.legend-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* STACKED BARS */
+.bar-list{display:flex;flex-direction:column;gap:11px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-name{font-size:12px;color:var(--text2);width:128px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;height:32px;background:var(--bg3);border-radius:6px;overflow:hidden;display:flex;position:relative;cursor:pointer;transition:transform .15s}
+.bar-track:hover{transform:scaleY(1.06)}
+.bar-q-seg{background:var(--q);height:100%;transition:width .7s cubic-bezier(.16,1,.3,1)}
+.bar-s-seg{background:var(--s);height:100%;transition:width .7s cubic-bezier(.16,1,.3,1)}
+.bar-pct-q{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:#fff;font-weight:600;font-family:'DM Mono',monospace;pointer-events:none}
+.bar-pct-s{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:#fff;font-weight:600;font-family:'DM Mono',monospace;pointer-events:none}
+.badge{font-size:10px;padding:3px 8px;border-radius:5px;font-weight:600;white-space:nowrap}
+.badge-q{background:rgba(59,130,246,.15);color:#93C5FD}
+.badge-s{background:rgba(249,115,22,.15);color:#FDBA74}
+.badge-tie{background:rgba(139,92,246,.15);color:#C4B5FD}
+.light .badge-q{background:#EFF6FF;color:#1D4ED8}
+.light .badge-s{background:#FFF7ED;color:#C2410C}
+.light .badge-tie{background:#F5F3FF;color:#6D28D9}
+
+/* 3-SEGMENT BAR (지표수 / 업무구분) */
+.seg3-list{display:flex;flex-direction:column;gap:11px}
+.seg3-row{display:flex;align-items:center;gap:10px}
+.seg3-name{font-size:12px;color:var(--text2);width:128px;text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg3-track{flex:1;height:32px;background:var(--bg3);border-radius:6px;overflow:hidden;display:flex;position:relative;cursor:default;transition:transform .15s}
+.seg3-track:hover{transform:scaleY(1.06)}
+.seg3-a{height:100%;transition:width .7s cubic-bezier(.16,1,.3,1)}
+.seg3-b{height:100%;transition:width .7s cubic-bezier(.16,1,.3,1)}
+.seg3-c{height:100%;transition:width .7s cubic-bezier(.16,1,.3,1)}
+.seg3-total{font-size:11px;color:var(--text3);width:44px;text-align:right;font-family:'DM Mono',monospace;flex-shrink:0}
+
+/* SECTION DIVIDER */
+.section-divider{display:flex;align-items:center;gap:12px;margin:32px 0 20px}
+.section-divider-line{flex:1;height:1px;background:var(--border2)}
+.section-divider-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;padding:4px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:20px}
+
+/* DRILL DOWN */
+.drill-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+.drill-overlay.open{display:flex}
+.drill-panel{background:var(--surface);border:1px solid var(--border2);border-radius:20px;padding:28px;width:min(600px,95vw);max-height:85vh;overflow-y:auto;animation:slideUp .3s cubic-bezier(.16,1,.3,1)}
+.drill-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.drill-title{font-size:18px;font-weight:700}
+.drill-close{width:32px;height:32px;border-radius:8px;background:var(--bg3);border:none;color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.drill-close:hover{background:var(--bg);color:var(--text)}
+.drill-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.drill-sum-card{background:var(--bg2);border-radius:10px;padding:14px;text-align:center}
+.drill-sum-card .v{font-size:22px;font-weight:700;font-family:'DM Mono',monospace}
+.drill-sum-card .l{font-size:11px;color:var(--text3);margin-top:3px}
+.drill-table{width:100%;border-collapse:collapse;font-size:13px}
+.drill-table th{background:var(--bg3);padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.drill-table th:first-child{border-radius:6px 0 0 6px}
+.drill-table th:last-child{border-radius:0 6px 6px 0}
+.drill-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-family:'DM Mono',monospace}
+.drill-table tr:last-child td{border-bottom:none}
+.drill-table tr:hover td{background:var(--bg2)}
+.mini-bar{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin-top:4px}
+.mini-bar-fill{height:100%;border-radius:3px;background:var(--q)}
+
+/* TOOLTIP */
+.tooltip{position:fixed;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;font-size:12px;pointer-events:none;z-index:200;opacity:0;transition:opacity .15s;box-shadow:0 8px 32px rgba(0,0,0,0.3);min-width:160px}
+.tooltip.show{opacity:1}
+.tooltip-title{font-weight:600;font-size:13px;margin-bottom:8px;color:var(--text)}
+.tooltip-row{display:flex;justify-content:space-between;gap:20px;color:var(--text2);margin-top:3px}
+.tooltip-row span:last-child{font-family:'DM Mono',monospace;font-weight:500}
+.tooltip-divider{height:1px;background:var(--border2);margin:6px 0}
+
+/* TOAST */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;z-index:300;transform:translateY(60px);opacity:0;transition:all .3s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:8px}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* SECTION PAGES */
+.page{display:none}
+.page.active{display:block}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+@media(max-width:768px){
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .chart-grid{grid-template-columns:1fr}
+  .chart-full{grid-column:1}
+  .bar-name,.seg3-name{width:90px;font-size:11px}
+  .tab-nav{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>본부별 지표 분석 대시보드</h1>
+      <p>2026 MBO 지표 분석 · 전체 9개 본부</p>
+    </div>
+    <div class="header-right">
+      <button class="btn" onclick="toggleTheme()" id="themeBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        라이트 모드
+      </button>
+      <button class="btn" onclick="exportCSV()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        CSV 내보내기
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB NAV -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('tab1',this)">📊 정량·정성 분석</button>
+    <button class="tab-btn" onclick="switchTab('tab2',this)">📈 지표수 분석</button>
+    <button class="tab-btn" onclick="switchTab('tab3',this)">🗂 업무구분 분석</button>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- TAB 1: 정량·정성 -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page active" id="tab1">
+    <div class="filter-bar">
+      <div class="filter-group" style="flex-wrap:wrap">
+        <span class="filter-label">본부</span>
+        <div class="dept-pills" id="deptPills"></div>
+      </div>
+      <div class="divider-v"></div>
+      <div class="filter-group">
+        <span class="filter-label">유형</span>
+        <div class="filter-pills">
+          <span class="pill active-all" id="pill-all" onclick="setFilter('all')">전체</span>
+          <span class="pill" id="pill-q" onclick="setFilter('q')">정량 ▲</span>
+          <span class="pill" id="pill-s" onclick="setFilter('s')">정성 ▲</span>
+          <span class="pill" id="pill-tie" onclick="setFilter('tie')">동일</span>
+        </div>
+      </div>
+      <div class="divider-v"></div>
+      <div class="filter-group">
+        <span class="filter-label">정렬</span>
+        <select class="sort-sel" id="sortSel" onchange="renderTab1()">
+          <option value="default">기본순</option>
+          <option value="total-desc">건수 많은순</option>
+          <option value="total-asc">건수 적은순</option>
+          <option value="qr-desc">정량비율 높은순</option>
+          <option value="qr-asc">정량비율 낮은순</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-card" style="--accent:var(--text)">
+        <div class="label">지표 총건수</div><div class="value" id="m-total">—</div>
+        <div class="sub" id="m-total-sub">—</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="m-total-bar" style="width:100%"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:var(--q)">
+        <div class="label">정량 지표</div><div class="value" id="m-q">—</div>
+        <div class="sub" id="m-q-sub">—</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="m-q-bar" style="width:0%;background:var(--q)"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:var(--s)">
+        <div class="label">정성 지표</div><div class="value" id="m-s">—</div>
+        <div class="sub" id="m-s-sub">—</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="m-s-bar" style="width:0%;background:var(--s)"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:var(--tie)">
+        <div class="label">표시 본부 수</div><div class="value" id="m-count">—</div>
+        <div class="sub" id="m-count-sub">—</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="m-count-bar" style="width:0%;background:var(--tie)"></div></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div><div class="chart-title">전체 정량·정성 비율</div><div class="chart-sub">필터 기준 합산</div></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--q)"></div><span id="leg-q">정량</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--s)"></div><span id="leg-s">정성</span></div>
+          </div>
+        </div>
+        <div style="position:relative;height:240px"><canvas id="pieChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div><div class="chart-title">본부별 지표 총건수</div><div class="chart-sub">정량 + 정성 합계</div></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--q)"></div><span>정량</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--s)"></div><span>정성</span></div>
+          </div>
+        </div>
+        <div style="position:relative;height:240px"><canvas id="barChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card chart-full">
+        <div class="chart-header">
+          <div><div class="chart-title">본부별 정량·정성 비율 비교</div><div class="chart-sub">막대 클릭 시 직위별 드릴다운</div></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--q)"></div><span>정량</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--s)"></div><span>정성</span></div>
+          </div>
+        </div>
+        <div class="bar-list" id="barList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- TAB 2: 지표수 분석 -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page" id="tab2">
+    <div class="filter-bar">
+      <div class="filter-group" style="flex-wrap:wrap">
+        <span class="filter-label">본부</span>
+        <div class="dept-pills" id="deptPills2"></div>
+      </div>
+    </div>
+    <div class="metric-grid">
+      <div class="metric-card" style="--accent:var(--text)">
+        <div class="label">분석 대상 부서수</div><div class="value" id="idx-m-count">9</div>
+        <div class="sub" id="idx-m-sub">전체 본부 기준</div>
+        <div class="bar-mini"><div class="bar-mini-fill" style="width:100%"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:#3B82F6">
+        <div class="label">지표 1개 부서</div><div class="value" style="color:#3B82F6" id="idx-m-n1">0</div>
+        <div class="sub" id="idx-m-s1">전체의 0%</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="idx-m-b1" style="width:0%;background:#3B82F6"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:#8B5CF6">
+        <div class="label">지표 2개 부서</div><div class="value" style="color:#8B5CF6" id="idx-m-n2">37</div>
+        <div class="sub" id="idx-m-s2">전체의 7.7%</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="idx-m-b2" style="width:7.7%;background:#8B5CF6"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:#10B981">
+        <div class="label">지표 3개 부서</div><div class="value" style="color:#10B981" id="idx-m-n3">441</div>
+        <div class="sub" id="idx-m-s3">전체의 92.3%</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="idx-m-b3" style="width:92.3%;background:#10B981"></div></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div><div class="chart-title">전체 지표수 구성 비율</div><div class="chart-sub">1개 / 2개 / 3개 분포</div></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div><span>1개 (0%)</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8B5CF6"></div><span>2개 (7.7%)</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div><span>3개 (92.3%)</span></div>
+          </div>
+        </div>
+        <div style="position:relative;height:240px"><canvas id="pieIdx"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div><div class="chart-title">본부별 지표수 합계</div><div class="chart-sub">부서별 총 지표 수</div></div>
+        </div>
+        <div style="position:relative;height:240px"><canvas id="barIdx"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card chart-full">
+        <div class="chart-header">
+          <div><div class="chart-title">본부별 지표수 구성 비율 비교</div><div class="chart-sub">1개 · 2개 · 3개 비율</div></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div><span>지표 1개</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8B5CF6"></div><span>지표 2개</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div><span>지표 3개</span></div>
+          </div>
+        </div>
+        <div class="seg3-list" id="idxBarList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- TAB 3: 업무구분 분석 -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page" id="tab3">
+    <div class="filter-bar">
+      <div class="filter-group" style="flex-wrap:wrap">
+        <span class="filter-label">본부</span>
+        <div class="dept-pills" id="deptPills3"></div>
+      </div>
+    </div>
+    <div class="metric-grid">
+      <div class="metric-card" style="--accent:var(--text)">
+        <div class="label">전체 지표 건수</div><div class="value" id="work-m-total">1,395</div>
+        <div class="sub" id="work-m-sub">전체 본부 합산</div>
+        <div class="bar-mini"><div class="bar-mini-fill" style="width:100%"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:#3B82F6">
+        <div class="label">기본 업무</div><div class="value" style="color:#3B82F6" id="work-m-b">611</div>
+        <div class="sub" id="work-m-bs">전체의 43.8%</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="work-m-bb" style="width:43.8%;background:#3B82F6"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:#F97316">
+        <div class="label">중점 업무</div><div class="value" style="color:#F97316" id="work-m-m">433</div>
+        <div class="sub" id="work-m-ms">전체의 31.0%</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="work-m-mb" style="width:31%;background:#F97316"></div></div>
+      </div>
+      <div class="metric-card" style="--accent:#10B981">
+        <div class="label">개선 업무</div><div class="value" style="color:#10B981" id="work-m-i">351</div>
+        <div class="sub" id="work-m-is">전체의 25.2%</div>
+        <div class="bar-mini"><div class="bar-mini-fill" id="work-m-ib" style="width:25.2%;background:#10B981"></div></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div><div class="chart-title">전체 업무구분 비율</div><div class="chart-sub">기본 / 중점 / 개선 분포</div></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div><span>기본 43.8%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#F97316"></div><span>중점 31.0%</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div><span>개선 25.2%</span></div>
+          </div>
+        </div>
+        <div style="position:relative;height:240px"><canvas id="pieWork"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div><div class="chart-title">본부별 업무구분 건수</div><div class="chart-sub">기본 + 중점 + 개선 합계</div></div>
+        </div>
+        <div style="position:relative;height:240px"><canvas id="barWork"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card chart-full">
+        <div class="chart-header">
+          <div><div class="chart-title">본부별 업무구분 비율 비교</div><div class="chart-sub">기본 · 중점 · 개선 비율</div></div>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div><span>기본</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#F97316"></div><span>중점</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div><span>개선</span></div>
+          </div>
+        </div>
+        <div class="seg3-list" id="workBarList"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<!-- DRILL DOWN -->
+<div class="drill-overlay" id="drillOverlay" onclick="closeDrill(event)">
+  <div class="drill-panel">
+    <div class="drill-header">
+      <div class="drill-title" id="drillTitle">본부 상세</div>
+      <button class="drill-close" onclick="closeDrillBtn()">✕</button>
+    </div>
+    <div class="drill-summary" id="drillSummary"></div>
+    <table class="drill-table">
+      <thead><tr>
+        <th>직위</th><th>총건수</th><th>정량</th><th>정성</th><th>비율</th><th>우세</th>
+      </tr></thead>
+      <tbody id="drillBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast"><span>✓</span><span id="toastMsg">완료</span></div>
+
+<script>
+// ── DATA ──
+const ALL = [
+  {name:'AI 융합연구소',    total:30,  q:19,  s:11,  qr:63.3, sr:36.7, flag:'q'},
+  {name:'CFO',             total:32,  q:13,  s:19,  qr:40.6, sr:59.4, flag:'s'},
+  {name:'O2O플랫폼사업본부',total:611, q:340, s:271, qr:55.6, sr:44.4, flag:'q'},
+  {name:'온라인사업본부',   total:171, q:101, s:70,  qr:59.1, sr:40.9, flag:'q'},
+  {name:'퍼블리싱사업본부', total:170, q:109, s:61,  qr:64.1, sr:35.9, flag:'q'},
+  {name:'교육평가연구소',   total:18,  q:9,   s:9,   qr:50.0, sr:50.0, flag:'tie'},
+  {name:'사업지원본부',     total:63,  q:44,  s:19,  qr:69.8, sr:30.2, flag:'q'},
+  {name:'대표이사 직속',    total:5,   q:0,   s:5,   qr:0.0,  sr:100,  flag:'s'},
+  {name:'ECI',             total:297, q:202, s:95,  qr:68.0, sr:32.0, flag:'q'},
+];
+
+const IDX = [
+  {name:'AI 융합연구소',    tot:10,  n1:0, n2:0,  n3:10, r1:0,    r2:0,     r3:100},
+  {name:'CFO',             tot:11,  n1:0, n2:1,  n3:10, r1:0,    r2:9.1,   r3:90.9},
+  {name:'O2O플랫폼사업본부',tot:211, n1:0, n2:22, n3:189,r1:0,    r2:10.4,  r3:89.6},
+  {name:'온라인사업본부',   tot:59,  n1:0, n2:6,  n3:53, r1:0,    r2:10.2,  r3:89.8},
+  {name:'퍼블리싱사업본부', tot:58,  n1:0, n2:4,  n3:54, r1:0,    r2:6.9,   r3:93.1},
+  {name:'교육평가연구소',   tot:6,   n1:0, n2:0,  n3:6,  r1:0,    r2:0,     r3:100},
+  {name:'사업지원본부',     tot:21,  n1:0, n2:0,  n3:21, r1:0,    r2:0,     r3:100},
+  {name:'대표이사 직속',    tot:2,   n1:0, n2:1,  n3:1,  r1:0,    r2:50.0,  r3:50.0},
+  {name:'ECI',             tot:100, n1:0, n2:3,  n3:97, r1:0,    r2:3.0,   r3:97.0},
+];
+
+const WORK = [
+  {name:'AI 융합연구소',    tot:30,  b:6,   m:13, i:11, rb:20.0, rm:43.3, ri:36.7},
+  {name:'CFO',             tot:32,  b:10,  m:13, i:9,  rb:31.3, rm:40.6, ri:28.1},
+  {name:'O2O플랫폼사업본부',tot:610, b:299, m:151,i:160,rb:49.0, rm:24.8, ri:26.2},
+  {name:'온라인사업본부',   tot:170, b:68,  m:69, i:33, rb:40.0, rm:40.6, ri:19.4},
+  {name:'퍼블리싱사업본부', tot:170, b:75,  m:54, i:41, rb:44.1, rm:31.8, ri:24.1},
+  {name:'교육평가연구소',   tot:18,  b:10,  m:3,  i:5,  rb:55.6, rm:16.7, ri:27.8},
+  {name:'사업지원본부',     tot:63,  b:14,  m:28, i:21, rb:22.2, rm:44.4, ri:33.3},
+  {name:'대표이사 직속',    tot:5,   b:3,   m:2,  i:0,  rb:60.0, rm:40.0, ri:0.0},
+  {name:'ECI',             tot:297, b:126, m:100,i:71, rb:42.4, rm:33.7, ri:23.9},
+];
+
+const DRILL = {
+  'AI 융합연구소':     [{pos:'부장',tot:9,q:5,s:4},{pos:'차장',tot:6,q:4,s:2},{pos:'과장',tot:12,q:8,s:4},{pos:'대리',tot:3,q:2,s:1}],
+  'CFO':              [{pos:'부장',tot:6,q:4,s:2},{pos:'차장',tot:8,q:3,s:5},{pos:'과장',tot:6,q:4,s:2},{pos:'대리',tot:9,q:1,s:8},{pos:'사원',tot:3,q:1,s:2}],
+  'O2O플랫폼사업본부': [{pos:'이사보',tot:2,q:1,s:1},{pos:'부장',tot:29,q:16,s:13},{pos:'차장',tot:109,q:53,s:56},{pos:'과장',tot:302,q:163,s:139},{pos:'대리',tot:108,q:69,s:39},{pos:'사원',tot:61,q:38,s:23}],
+  '온라인사업본부':    [{pos:'부장',tot:19,q:5,s:14},{pos:'차장',tot:38,q:23,s:15},{pos:'과장',tot:75,q:48,s:27},{pos:'대리',tot:24,q:17,s:7},{pos:'사원',tot:15,q:8,s:7}],
+  '퍼블리싱사업본부':  [{pos:'부장',tot:11,q:7,s:4},{pos:'차장',tot:51,q:35,s:16},{pos:'과장',tot:82,q:53,s:29},{pos:'대리',tot:20,q:10,s:10},{pos:'사원',tot:6,q:4,s:2}],
+  '교육평가연구소':    [{pos:'차장',tot:6,q:6,s:0},{pos:'과장',tot:3,q:1,s:2},{pos:'대리',tot:3,q:0,s:3},{pos:'사원',tot:6,q:2,s:4}],
+  '사업지원본부':      [{pos:'부장',tot:9,q:8,s:1},{pos:'차장',tot:6,q:5,s:1},{pos:'과장',tot:30,q:19,s:11},{pos:'대리',tot:15,q:11,s:4},{pos:'사원',tot:3,q:1,s:2}],
+  '대표이사 직속':     [{pos:'차장',tot:5,q:0,s:5}],
+  'ECI':              [{pos:'부장',tot:24,q:18,s:6},{pos:'차장',tot:32,q:25,s:7},{pos:'과장',tot:127,q:85,s:42},{pos:'대리',tot:78,q:49,s:29},{pos:'사원',tot:36,q:25,s:11}],
+};
+
+let currentFilter='all', currentDept='all', isDark=true;
+let pieInst=null, barInst=null;
+let pieIdxInst=null, barIdxInst=null;
+let pieWorkInst=null, barWorkInst=null;
+
+// ── DEPT PILLS INIT ──
+function initDeptPills() {
+  const names = ['all', ...ALL.map(d=>d.name)];
+  ['deptPills','deptPills2','deptPills3'].forEach((id,ti) => {
+    const wrap = document.getElementById(id);
+    if (!wrap) return;
+    wrap.innerHTML = names.map(n => {
+      const label = n === 'all' ? '전체' : (n.length > 5 ? n.slice(0,5)+'…' : n);
+      return `<span class="dpill ${n==='all'?'active':''}" onclick="setDept('${n}',${ti})" title="${n}">${label}</span>`;
+    }).join('');
+  });
+}
+
+// ── TAB ──
+function switchTab(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  syncAllPills();
+  if(id==='tab1') renderTab1();
+  else if(id==='tab2') renderTab2();
+  else if(id==='tab3') renderTab3();
+}
+function syncAllPills() {
+  ['deptPills','deptPills2','deptPills3'].forEach(id => {
+    const wrap = document.getElementById(id);
+    if (!wrap) return;
+    wrap.querySelectorAll('.dpill').forEach(el => {
+      el.classList.toggle('active', el.title===currentDept||(currentDept==='all'&&el.textContent==='전체'));
+    });
+  });
+}
+
+// ── THEME ──
+function toggleTheme() {
+  isDark=!isDark;
+  document.body.classList.toggle('light',!isDark);
+  document.getElementById('themeBtn').innerHTML = isDark
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> 라이트 모드`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg> 다크 모드`;
+}
+
+// ── TOOLTIP ──
+const tip=document.getElementById('tooltip');
+function showTip(e,html){tip.innerHTML=html;tip.classList.add('show');moveTip(e)}
+function moveTip(e){const x=e.clientX+14,y=e.clientY-10;tip.style.left=Math.min(x,window.innerWidth-200)+'px';tip.style.top=y+'px'}
+function hideTip(){tip.classList.remove('show')}
+
+// ── DEPT FILTER ──
+function setDept(name, tabIdx) {
+  currentDept = name;
+  ['deptPills','deptPills2','deptPills3'].forEach(id => {
+    const wrap = document.getElementById(id);
+    if (!wrap) return;
+    wrap.querySelectorAll('.dpill').forEach(el => {
+      el.classList.toggle('active', el.title === name || (name==='all' && el.textContent==='전체'));
+    });
+  });
+  if (tabIdx === 0) renderTab1();
+  else if (tabIdx === 1) renderTab2();
+  else if (tabIdx === 2) renderTab3();
+}
+
+// ── TYPE FILTER ──
+function setFilter(f) {
+  currentFilter=f;
+  ['all','q','s','tie'].forEach(k=>{
+    const el=document.getElementById('pill-'+k);
+    el.className='pill';
+    if(k===f) el.classList.add('active-'+k);
+  });
+  renderTab1();
+}
+function getFiltered(){return currentFilter==='all'?[...ALL]:ALL.filter(d=>d.flag===currentFilter)}
+function getSorted(arr){
+  const s=document.getElementById('sortSel').value, a=[...arr];
+  if(s==='total-desc') a.sort((x,y)=>y.total-x.total);
+  else if(s==='total-asc') a.sort((x,y)=>x.total-y.total);
+  else if(s==='qr-desc') a.sort((x,y)=>y.qr-x.qr);
+  else if(s==='qr-asc') a.sort((x,y)=>x.qr-y.qr);
+  return a;
+}
+
+// ── TAB1 RENDER ──
+function renderTab1() {
+  const filtered=getFiltered(), sorted=getSorted(filtered);
+  // 메트릭은 선택된 본부 기준으로
+  const metricData = currentDept==='all' ? sorted : sorted.filter(d=>d.name===currentDept);
+  const tQ=metricData.reduce((a,d)=>a+d.q,0), tS=metricData.reduce((a,d)=>a+d.s,0), tAll=tQ+tS;
+  const qPct=tAll?(tQ/tAll*100).toFixed(1):'0.0', sPct=tAll?(tS/tAll*100).toFixed(1):'0.0';
+  document.getElementById('m-total').textContent=tAll.toLocaleString();
+  document.getElementById('m-total-sub').textContent=(currentDept==='all'?sorted.length+'개 본부':currentDept);
+  document.getElementById('m-q').textContent=tQ.toLocaleString();
+  document.getElementById('m-q-sub').textContent=qPct+'%';
+  document.getElementById('m-q-bar').style.width=qPct+'%';
+  document.getElementById('m-s').textContent=tS.toLocaleString();
+  document.getElementById('m-s-sub').textContent=sPct+'%';
+  document.getElementById('m-s-bar').style.width=sPct+'%';
+  document.getElementById('m-count').textContent=currentDept==='all'?(sorted.length+' / '+ALL.length):'1 / '+ALL.length;
+  document.getElementById('m-count-sub').textContent=currentDept==='all'?({all:'전체',q:'정량 우세',s:'정성 우세',tie:'동일'})[currentFilter]:currentDept;
+  document.getElementById('m-count-bar').style.width=(currentDept==='all'?(sorted.length/ALL.length*100):100)+'%';
+  document.getElementById('leg-q').textContent=`정량 ${qPct}% (${tQ.toLocaleString()}건)`;
+  document.getElementById('leg-s').textContent=`정성 ${sPct}% (${tS.toLocaleString()}건)`;
+  const qC='#3B82F6', sC='#F97316';
+  // 파이: 선택 본부 기준
+  if(pieInst) pieInst.destroy();
+  pieInst=new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:['정량','정성'],datasets:[{data:[tQ,tS],backgroundColor:[qC,sC],borderWidth:0,hoverOffset:10}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw.toLocaleString()}건 (${tAll?(ctx.raw/tAll*100).toFixed(1):0}%)`}}},animation:{duration:700}}});
+  // 건수 차트: 전체 표시, 선택 본부 강조
+  if(barInst) barInst.destroy();
+  const barColors = sorted.map(d => currentDept==='all'||d.name===currentDept ? qC : 'rgba(59,130,246,0.2)');
+  const barColorsS = sorted.map(d => currentDept==='all'||d.name===currentDept ? sC : 'rgba(249,115,22,0.2)');
+  barInst=new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:sorted.map(d=>d.name.length>6?d.name.slice(0,6)+'…':d.name),datasets:[{label:'정량',data:sorted.map(d=>d.q),backgroundColor:barColors,borderRadius:4,borderSkipped:false},{label:'정성',data:sorted.map(d=>d.s),backgroundColor:barColorsS,borderRadius:4,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:items=>sorted[items[0].dataIndex].name}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#64748B',font:{size:10},maxRotation:20}},y:{stacked:true,grid:{color:'rgba(100,116,139,0.12)'},ticks:{color:'#64748B',font:{size:10}}}},animation:{duration:600}}});
+  // 누적 막대: 하이라이트 B안
+  document.getElementById('barList').innerHTML=sorted.map(d=>{
+    const bCls=d.flag==='q'?'badge-q':d.flag==='s'?'badge-s':'badge-tie';
+    const bTxt=d.flag==='q'?'정량▲':d.flag==='s'?'정성▲':'동일';
+    const isHi = currentDept==='all'||d.name===currentDept;
+    const rc = currentDept==='all' ? '' : (d.name===currentDept ? 'highlighted' : 'dimmed');
+    return `<div class="bar-row ${rc}">
+      <span class="bar-name" title="${d.name}">${d.name}</span>
+      <div class="bar-track" onclick="openDrill('${d.name}')"
+        onmouseenter="showTip(event,'<div class=tooltip-title>${d.name}</div><div class=tooltip-row><span>총건수</span><span>${d.total.toLocaleString()}건</span></div><div class=tooltip-row><span>정량</span><span>${d.q}건 (${d.qr.toFixed(1)}%)</span></div><div class=tooltip-row><span>정성</span><span>${d.s}건 (${d.sr.toFixed(1)}%)</span></div>')"
+        onmousemove="moveTip(event)" onmouseleave="hideTip()">
+        <div class="bar-q-seg" style="width:${d.qr}%"></div>
+        <div class="bar-s-seg" style="width:${d.sr}%"></div>
+        <span class="bar-pct-q">${d.qr.toFixed(1)}%</span>
+        <span class="bar-pct-s">${d.sr.toFixed(1)}%</span>
+      </div>
+      <span class="badge ${bCls}">${bTxt}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── TAB2 RENDER ──
+function renderTab2() {
+  const data = currentDept==='all' ? IDX : IDX.filter(d=>d.name===currentDept);
+  const tN1=data.reduce((a,d)=>a+d.n1,0), tN2=data.reduce((a,d)=>a+d.n2,0), tN3=data.reduce((a,d)=>a+d.n3,0);
+  const tTot=tN1+tN2+tN3;
+  document.getElementById('idx-m-count').textContent = currentDept==='all' ? IDX.length : '1';
+  document.getElementById('idx-m-sub').textContent = currentDept==='all' ? '전체 본부 기준' : currentDept;
+  // 카드 2~4 동적 업데이트
+  const pct1 = tTot ? (tN1/tTot*100).toFixed(1) : '0.0';
+  const pct2 = tTot ? (tN2/tTot*100).toFixed(1) : '0.0';
+  const pct3 = tTot ? (tN3/tTot*100).toFixed(1) : '0.0';
+  document.getElementById('idx-m-n1').textContent = tN1;
+  document.getElementById('idx-m-s1').textContent = `전체의 ${pct1}%`;
+  document.getElementById('idx-m-b1').style.width = pct1 + '%';
+  document.getElementById('idx-m-n2').textContent = tN2;
+  document.getElementById('idx-m-s2').textContent = `전체의 ${pct2}%`;
+  document.getElementById('idx-m-b2').style.width = pct2 + '%';
+  document.getElementById('idx-m-n3').textContent = tN3;
+  document.getElementById('idx-m-s3').textContent = `전체의 ${pct3}%`;
+  document.getElementById('idx-m-b3').style.width = pct3 + '%';
+  const labels=IDX.map(d=>d.name.length>6?d.name.slice(0,6)+'…':d.name);
+  if(pieIdxInst) pieIdxInst.destroy();
+  pieIdxInst=new Chart(document.getElementById('pieIdx'),{type:'doughnut',data:{labels:['지표 1개','지표 2개','지표 3개'],datasets:[{data:[tN1,tN2,tN3],backgroundColor:['#3B82F6','#8B5CF6','#10B981'],borderWidth:0,hoverOffset:10}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}건 (${tTot?(ctx.raw/tTot*100).toFixed(1):0}%)`}}},animation:{duration:700}}});
+  if(barIdxInst) barIdxInst.destroy();
+  const c1a=IDX.map(d=>currentDept==='all'||d.name===currentDept?'#3B82F6':'rgba(59,130,246,0.2)');
+  const c2a=IDX.map(d=>currentDept==='all'||d.name===currentDept?'#8B5CF6':'rgba(139,92,246,0.2)');
+  const c3a=IDX.map(d=>currentDept==='all'||d.name===currentDept?'#10B981':'rgba(16,185,129,0.2)');
+  barIdxInst=new Chart(document.getElementById('barIdx'),{type:'bar',data:{labels,datasets:[{label:'1개',data:IDX.map(d=>d.n1),backgroundColor:c1a,borderRadius:4},{label:'2개',data:IDX.map(d=>d.n2),backgroundColor:c2a,borderRadius:4},{label:'3개',data:IDX.map(d=>d.n3),backgroundColor:c3a,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:items=>IDX[items[0].dataIndex].name}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#64748B',font:{size:10},maxRotation:20}},y:{stacked:true,grid:{color:'rgba(100,116,139,0.12)'},ticks:{color:'#64748B',font:{size:10}}}},animation:{duration:600}}});
+  document.getElementById('idxBarList').innerHTML=IDX.map(d=>{
+    const rc = currentDept==='all' ? '' : (d.name===currentDept ? 'highlighted' : 'dimmed');
+    return `<div class="seg3-row ${rc}">
+      <span class="seg3-name" title="${d.name}">${d.name}</span>
+      <div class="seg3-track"
+        onmouseenter="showTip(event,'<div class=tooltip-title>${d.name}</div><div class=tooltip-row><span>지표 1개</span><span>${d.n1}건 (${d.r1.toFixed(1)}%)</span></div><div class=tooltip-row><span>지표 2개</span><span>${d.n2}건 (${d.r2.toFixed(1)}%)</span></div><div class=tooltip-row><span>지표 3개</span><span>${d.n3}건 (${d.r3.toFixed(1)}%)</span></div>')"
+        onmousemove="moveTip(event)" onmouseleave="hideTip()">
+        <div class="seg3-a" style="width:${d.r1}%;background:#3B82F6"></div>
+        <div class="seg3-b" style="width:${d.r2}%;background:#8B5CF6"></div>
+        <div class="seg3-c" style="width:${d.r3}%;background:#10B981"></div>
+        ${d.r2>4?`<span style="position:absolute;left:${d.r1+d.r2/2}%;transform:translate(-50%,-50%);top:50%;font-size:10px;color:#fff;font-weight:600;pointer-events:none">${d.r2.toFixed(0)}%</span>`:''}
+        ${d.r3>8?`<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:#fff;font-weight:600;pointer-events:none">${d.r3.toFixed(0)}%</span>`:''}
+      </div>
+      <span class="seg3-total">${d.tot}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── TAB3 RENDER ──
+function renderTab3() {
+  const data = currentDept==='all' ? WORK : WORK.filter(d=>d.name===currentDept);
+  const tB=data.reduce((a,d)=>a+d.b,0), tM=data.reduce((a,d)=>a+d.m,0), tI=data.reduce((a,d)=>a+d.i,0);
+  const tTot=tB+tM+tI;
+  document.getElementById('work-m-total').textContent = tTot.toLocaleString();
+  document.getElementById('work-m-sub').textContent = currentDept==='all' ? '전체 본부 합산' : currentDept;
+  // 카드 2~4 동적 업데이트
+  const pb = tTot ? (tB/tTot*100).toFixed(1) : '0.0';
+  const pm = tTot ? (tM/tTot*100).toFixed(1) : '0.0';
+  const pi = tTot ? (tI/tTot*100).toFixed(1) : '0.0';
+  document.getElementById('work-m-b').textContent = tB;
+  document.getElementById('work-m-bs').textContent = `전체의 ${pb}%`;
+  document.getElementById('work-m-bb').style.width = pb + '%';
+  document.getElementById('work-m-m').textContent = tM;
+  document.getElementById('work-m-ms').textContent = `전체의 ${pm}%`;
+  document.getElementById('work-m-mb').style.width = pm + '%';
+  document.getElementById('work-m-i').textContent = tI;
+  document.getElementById('work-m-is').textContent = `전체의 ${pi}%`;
+  document.getElementById('work-m-ib').style.width = pi + '%';
+  const labels=WORK.map(d=>d.name.length>6?d.name.slice(0,6)+'…':d.name);
+  if(pieWorkInst) pieWorkInst.destroy();
+  pieWorkInst=new Chart(document.getElementById('pieWork'),{type:'doughnut',data:{labels:['기본','중점','개선'],datasets:[{data:[tB,tM,tI],backgroundColor:['#3B82F6','#F97316','#10B981'],borderWidth:0,hoverOffset:10}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}건 (${tTot?(ctx.raw/tTot*100).toFixed(1):0}%)`}}},animation:{duration:700}}});
+  if(barWorkInst) barWorkInst.destroy();
+  const cb=WORK.map(d=>currentDept==='all'||d.name===currentDept?'#3B82F6':'rgba(59,130,246,0.2)');
+  const cm=WORK.map(d=>currentDept==='all'||d.name===currentDept?'#F97316':'rgba(249,115,22,0.2)');
+  const ci=WORK.map(d=>currentDept==='all'||d.name===currentDept?'#10B981':'rgba(16,185,129,0.2)');
+  barWorkInst=new Chart(document.getElementById('barWork'),{type:'bar',data:{labels,datasets:[{label:'기본',data:WORK.map(d=>d.b),backgroundColor:cb,borderRadius:4},{label:'중점',data:WORK.map(d=>d.m),backgroundColor:cm,borderRadius:4},{label:'개선',data:WORK.map(d=>d.i),backgroundColor:ci,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:items=>WORK[items[0].dataIndex].name}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#64748B',font:{size:10},maxRotation:20}},y:{stacked:true,grid:{color:'rgba(100,116,139,0.12)'},ticks:{color:'#64748B',font:{size:10}}}},animation:{duration:600}}});
+  document.getElementById('workBarList').innerHTML=WORK.map(d=>{
+    const rc = currentDept==='all' ? '' : (d.name===currentDept ? 'highlighted' : 'dimmed');
+    return `<div class="seg3-row ${rc}">
+      <span class="seg3-name" title="${d.name}">${d.name}</span>
+      <div class="seg3-track"
+        onmouseenter="showTip(event,'<div class=tooltip-title>${d.name}</div><div class=tooltip-row><span>기본</span><span>${d.b}건 (${d.rb.toFixed(1)}%)</span></div><div class=tooltip-row><span>중점</span><span>${d.m}건 (${d.rm.toFixed(1)}%)</span></div><div class=tooltip-row><span>개선</span><span>${d.i}건 (${d.ri.toFixed(1)}%)</span></div>')"
+        onmousemove="moveTip(event)" onmouseleave="hideTip()">
+        <div class="seg3-a" style="width:${d.rb}%;background:#3B82F6"></div>
+        <div class="seg3-b" style="width:${d.rm}%;background:#F97316"></div>
+        <div class="seg3-c" style="width:${d.ri}%;background:#10B981"></div>
+        ${d.rb>8?`<span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:#fff;font-weight:600;pointer-events:none">${d.rb.toFixed(0)}%</span>`:''}
+        ${d.rm>8?`<span style="position:absolute;left:${d.rb+d.rm/2}%;transform:translate(-50%,-50%);top:50%;font-size:10px;color:#fff;font-weight:600;pointer-events:none">${d.rm.toFixed(0)}%</span>`:''}
+        ${d.ri>8?`<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:#fff;font-weight:600;pointer-events:none">${d.ri.toFixed(0)}%</span>`:''}
+      </div>
+      <span class="seg3-total">${d.tot}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── DRILL ──
+function openDrill(name) {
+  const d=ALL.find(x=>x.name===name), rows=DRILL[name]||[];
+  document.getElementById('drillTitle').textContent=name+' · 직위별 상세';
+  document.getElementById('drillSummary').innerHTML=`
+    <div class="drill-sum-card"><div class="v">${d.total}</div><div class="l">총건수</div></div>
+    <div class="drill-sum-card"><div class="v" style="color:var(--q)">${d.q}</div><div class="l">정량 (${d.qr.toFixed(1)}%)</div></div>
+    <div class="drill-sum-card"><div class="v" style="color:var(--s)">${d.s}</div><div class="l">정성 (${d.sr.toFixed(1)}%)</div></div>`;
+  document.getElementById('drillBody').innerHTML=rows.map(r=>{
+    const rq=r.tot?(r.q/r.tot*100).toFixed(1):'0.0';
+    const flag=r.q>r.s?'정량▲':r.s>r.q?'정성▲':'동일';
+    const bCls=r.q>r.s?'badge-q':r.s>r.q?'badge-s':'badge-tie';
+    return `<tr><td style="font-family:'Pretendard',sans-serif;font-weight:500">${r.pos}</td><td>${r.tot}</td><td style="color:var(--q)">${r.q}</td><td style="color:var(--s)">${r.s}</td><td><div>${rq}%</div><div class="mini-bar"><div class="mini-bar-fill" style="width:${rq}%"></div></div></td><td><span class="badge ${bCls}">${flag}</span></td></tr>`;
+  }).join('');
+  document.getElementById('drillOverlay').classList.add('open');
+}
+function closeDrill(e){if(e.target===document.getElementById('drillOverlay'))closeDrillBtn()}
+function closeDrillBtn(){document.getElementById('drillOverlay').classList.remove('open')}
+
+// ── EXPORT ──
+function exportCSV() {
+  const tab=document.querySelector('.tab-btn.active').textContent.trim();
+  let rows, fn;
+  if(tab.includes('정량')) {
+    rows=[['본부','총건수','정량','정량비율(%)','정성','정성비율(%)','우세']];
+    getSorted(getFiltered()).forEach(d=>rows.push([d.name,d.total,d.q,d.qr.toFixed(1),d.s,d.sr.toFixed(1),d.flag==='q'?'정량':d.flag==='s'?'정성':'동일']));
+    fn='정량정성_분석';
+  } else if(tab.includes('지표수')) {
+    rows=[['본부','합계','1개','1개비율(%)','2개','2개비율(%)','3개','3개비율(%)']];
+    IDX.forEach(d=>rows.push([d.name,d.tot,d.n1,d.r1.toFixed(1),d.n2,d.r2.toFixed(1),d.n3,d.r3.toFixed(1)]));
+    fn='지표수_분석';
+  } else {
+    rows=[['본부','합계','기본','기본비율(%)','중점','중점비율(%)','개선','개선비율(%)']];
+    WORK.forEach(d=>rows.push([d.name,d.tot,d.b,d.rb.toFixed(1),d.m,d.rm.toFixed(1),d.i,d.ri.toFixed(1)]));
+    fn='업무구분_분석';
+  }
+  const csv='\uFEFF'+rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=fn+'_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  document.getElementById('toastMsg').textContent='CSV 다운로드 완료 ✓';
+  document.getElementById('toast').classList.add('show');
+  setTimeout(()=>document.getElementById('toast').classList.remove('show'),2800);
+}
+
+// ── INIT ──
+initDeptPills();
+renderTab1();
+</script>
+</body>
+</html>
